@@ -16,7 +16,7 @@ cloudinary.config({
         try{
            if(!localFilePath) return null;
            const response = await cloudinary.uploader.upload(localFilePath,{
-             resource: auto 
+             resource: "auto" 
            })
            console.log("file has been successfully uploaded", response.url);
            return response;
@@ -25,3 +25,5 @@ cloudinary.config({
           return null;
         }
     }
+    //exporting 
+    export {uploadOnCloud}
