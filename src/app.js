@@ -12,4 +12,4 @@ app.use(cors({
 }))
 
 
-export { app }
+export { app }   //another way to export 
