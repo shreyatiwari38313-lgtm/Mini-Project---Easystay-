@@ -24,4 +24,15 @@ app.use(express.static("public"))
 //configuration -> for keeping secure cookies inside user's browser
 app.use(cookieParser())
 
+
+
+//routes import 
+import userRouter from './routes/user.routers.js';
+
+//routes declaration -> firstly we were writing app.get() as we have routes in same file 
+//but here you have separated routers, so we have to take middleware "app.use()""
+app.use("/api/v1/users", userRouter)   // "/users" has become prefix in url
+
+//url becomes : http://localhost:8000/api/v1/users/register
+
 export { app }   //another way to export 
