@@ -35,4 +35,27 @@ app.use("/api/v1/users", userRouter)   // "/users" has become prefix in url
 
 //url becomes : http://localhost:8000/api/v1/users/register
 
+
+// routes import
+import propertyRouter from "./routes/property.routes.js";
+import amenityRouter from "./routes/amenity.routes.js";
+import availabilityRouter from "./routes/availability.routes.js";
+import bookingRouter from "./routes/booking.routes.js";
+import paymentRouter from "./routes/payment.routes.js";
+import reviewRouter from "./routes/review.routes.js";
+import wishlistRouter from "./routes/wishlist.routes.js";
+import hostVerificationRouter from "./routes/hostVerification.routes.js";
+
+
+// routes declaration
+app.use("/api/v1/properties", propertyRouter);
+app.use("/api/v1/amenities", amenityRouter);
+app.use("/api/v1/availability", availabilityRouter);
+app.use("/api/v1/bookings", bookingRouter);
+app.use("/api/v1/payments", paymentRouter);
+app.use("/api/v1/reviews", reviewRouter);
+app.use("/api/v1/wishlist", wishlistRouter);
+app.use("/api/v1/host-verification", hostVerificationRouter);
+
+
 export { app }   //another way to export 
