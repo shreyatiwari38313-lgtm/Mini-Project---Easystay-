@@ -1,54 +1,10 @@
+import express from "express";
+import cookieParser from "cookie-parser";
+import cors from "cors";
 
-import express from 'express';
-import userRouter from './routes/user.routes.js';
-import cookieParser from 'cookie-parser';
-import cors from 'cors';
-//configurations done after app making
-const app = express()
-
-//configuring cors
-// app.use(cors())      // app.use() se middlewares,configuration settings hoti h
-app.use(cors({
-    //states which origin to allow taking data from database
-    origin: process.env.CORS_ORIGIN ||"http://localhost:8080",
-    credentials:true       // there are more options
-}))
-
-//configuration -> for datacoming from forms
-app.use(express.json({limit:"16kb"}))
-
-//configuration ->for data coming from url
-app.use(express.urlencoded({extended:true}))
-
-//configuration -> for data(image,pdf,video) that is to be kept inside folder "public"
-app.use(express.static("public"))
-
-//configuration -> for keeping secure cookies inside user's browser
-app.use(cookieParser())
-
-// CSP header to allow dev backend connections
-app.use((req, res, next) => {
-  res.setHeader(
-    "Content-Security-Policy",
-    "default-src 'self'; connect-src 'self' http://localhost:8000; img-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
-  );
-  next();
-});
-
-app.get("/", (_req, res) => res.send("API running"));
-
-//routes import 
-console.log("userRouter loaded:", userRouter);
-
-
-//routes declaration -> firstly we were writing app.get() as we have routes in same file 
-//but here you have separated routers, so we have to take middleware "app.use()""
-app.use("/api/v1/users", userRouter)   // "/users" has become prefix in url
-
-//url becomes : http://localhost:8000/api/v1/users/register
-
-
-// routes import
+// routers
+import authRouter from "./routes/auth.routes.js";
+import userRouter from "./routes/user.routes.js";
 import propertyRouter from "./routes/property.routes.js";
 import amenityRouter from "./routes/amenity.routes.js";
 import availabilityRouter from "./routes/availability.routes.js";
@@ -58,8 +14,92 @@ import reviewRouter from "./routes/review.routes.js";
 import wishlistRouter from "./routes/wishlist.routes.js";
 import hostVerificationRouter from "./routes/hostVerification.routes.js";
 
+const app = express();
 
-// routes declaration
+/* =======================
+   CORS CONFIG
+======================= */
+// Parse CORS_ORIGIN - can be comma-separated list or single value or *
+const parseCorsOrigin = () => {
+  const origin = process.env.CORS_ORIGIN || "http://localhost:5173";
+  
+  if (origin === "*") {
+    return "*";
+  }
+  
+  // Parse comma-separated origins
+  if (origin.includes(",")) {
+    return origin.split(",").map(o => o.trim());
+  }
+  
+  return origin;
+};
+
+const corsOrigin = parseCorsOrigin();
+const corsOptions = {
+  origin: corsOrigin,
+  credentials: corsOrigin !== "*",  // Only allow credentials if not wildcard
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 200
+};
+
+console.log("🔒 CORS Configuration:", { 
+  origin: corsOptions.origin, 
+  credentials: corsOptions.credentials 
+});
+
+app.use(cors(corsOptions));
+
+/* =======================
+   BODY PARSERS
+======================= */
+app.use(express.json({ limit: "16kb" }));
+app.use(express.urlencoded({ extended: true }));
+
+/* =======================
+   STATIC FILES
+======================= */
+app.use(express.static("public"));
+
+/* =======================
+   COOKIES
+======================= */
+app.use(cookieParser());
+
+/* =======================
+   CSP (DEV SAFE)
+======================= */
+app.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; connect-src 'self' http://localhost:8000 http://localhost:8080; img-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+  );
+  next();
+});
+
+/* =======================
+   HEALTH CHECK
+======================= */
+app.get("/", (_req, res) => {
+  res.send("EasyStay API running 🚀");
+});
+
+/* Test endpoint to verify backend connectivity */
+app.get("/api/v1/test", (_req, res) => {
+  res.json({ success: true, message: "Backend is connected" });
+});
+
+/* =======================
+   AUTH + USER ROUTES
+======================= */
+app.use("/api/v1/auth", authRouter); // register, login, logout, refresh
+app.use("/api/v1/users", authRouter); // register, login, logout, refresh
+app.use("/api/v1/users", userRouter); // me, update, delete
+
+/* =======================
+   OTHER MODULE ROUTES
+======================= */
 app.use("/api/v1/properties", propertyRouter);
 app.use("/api/v1/amenities", amenityRouter);
 app.use("/api/v1/availability", availabilityRouter);
@@ -69,5 +109,26 @@ app.use("/api/v1/reviews", reviewRouter);
 app.use("/api/v1/wishlist", wishlistRouter);
 app.use("/api/v1/host-verification", hostVerificationRouter);
 
+/* =======================
+   ERROR HANDLING MIDDLEWARE
+======================= */
+app.use((err, req, res, next) => {
+  console.error("Error:", err);
+  
+  // Handle Mongoose duplicate key error
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyPattern)[0];
+    return res.status(409).json({
+      success: false,
+      message: `${field} already exists`
+    });
+  }
 
-export { app }   //another way to export 
+  // Default error response
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || "Internal server error"
+  });
+});
+
+export { app };

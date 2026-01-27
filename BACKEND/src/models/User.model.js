@@ -2,12 +2,12 @@ import mongoose from 'mongoose';
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 const userSchema = new mongoose.Schema({
-   name:{ type: String, unique: true},
-   email:{type: String, unique : true},
-   password : String,
+   name:{ type: String, required: true},
+   email:{type: String, unique : true, required: true},
+   password : { type: String, required: true },
    phone: String,
 
-   role:{ type: String, enum: ["user","host"], default : "user"},
+   role:{ type: String, enum: ["guest","host"], default : "guest"},
    profileImage: String,  //cloudinary
    createdAt: { type: Date, default: Date.now }
 },{timestamps: true})

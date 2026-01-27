@@ -1,70 +1,12 @@
+import express from "express";
+import { getProfile, updateProfile, deleteUser } from "../controllers/user.controller.js";
+import protect from "../middlewares/auth.middleware.js";
 
-import { Router } from 'express';
-import { registerUser, getAllUsers, deleteUser } from '../controllers/user.controller.js';
+const router = express.Router();
 
-const router = Router();
-
-// Routes for APIs
-// Mounted at /api/v1/users in app.js
-router.route('/register').post(registerUser);
-router.route('/').get(getAllUsers);        // GET all users
-router.route('/:id').delete(deleteUser);   // DELETE user by ID
-
+// All routes are protected
+router.get("/me", protect, getProfile);
+router.put("/update", protect, updateProfile);
+router.delete("/delete", protect, deleteUser);
 
 export default router;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// // Router
-// //importing router from express
-
-// import { Router } from 'express';
-// import { registerUser } from '../controllers/user.controller.js';
-
-// const router = Router()  // same as const app = express()
-
-// //usage and work
-// router.route("/register").post(registerUser)
-
-// //exporting must
-// export default router 
-
-// //where to import these router and controllers
-// //basically in app.js so that index.js should have clean code

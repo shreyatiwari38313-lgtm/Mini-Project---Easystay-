@@ -6,7 +6,7 @@ import connectDB from './db/main.js';
 
 // Load env variables FIRST
 dotenv.config({
-    path: './env'      
+    path: './.env'      
 })
 
 //database connection -> connectDB  executed
