@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useMemo } from "react";
 import Navbar from "@/components/Navbar";
 import PropertyCard from "@/components/PropertyCard";
 import { Button } from "@/components/ui/button";
@@ -6,101 +7,48 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Search, SlidersHorizontal } from "lucide-react";
+import properties from "@/lib/propertiesData";
 
 const Properties = () => {
-  const [priceRange, setPriceRange] = useState([0, 500]);
-  
-  // Mock data - would come from backend in real app
-  const properties = [
-    {
-      id: "1",
-      title: "Cozy Downtown Apartment",
-      location: "New York, NY",
-      price: 120,
-      rating: 4.8,
-      reviews: 124,
-      guests: 4,
-      imageUrl: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800",
-      category: "Apartment"
-    },
-    {
-      id: "2",
-      title: "Beachfront Villa",
-      location: "Miami, FL",
-      price: 350,
-      rating: 4.9,
-      reviews: 89,
-      guests: 8,
-      imageUrl: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800",
-      category: "Villa"
-    },
-    {
-      id: "3",
-      title: "Mountain Cabin Retreat",
-      location: "Aspen, CO",
-      price: 200,
-      rating: 4.7,
-      reviews: 156,
-      guests: 6,
-      imageUrl: "https://images.unsplash.com/photo-1542718610-a1d656d1884c?w=800",
-      category: "Cabin"
-    },
-    {
-      id: "4",
-      title: "Modern Loft Studio",
-      location: "Los Angeles, CA",
-      price: 95,
-      rating: 4.6,
-      reviews: 78,
-      guests: 2,
-      imageUrl: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800",
-      category: "Studio"
-    },
-    {
-      id: "5",
-      title: "Luxury Penthouse Suite",
-      location: "Chicago, IL",
-      price: 450,
-      rating: 4.9,
-      reviews: 201,
-      guests: 6,
-      imageUrl: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800",
-      category: "Penthouse"
-    },
-    {
-      id: "6",
-      title: "Charming Cottage",
-      location: "Portland, OR",
-      price: 85,
-      rating: 4.5,
-      reviews: 67,
-      guests: 3,
-      imageUrl: "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800",
-      category: "Cottage"
-    },
-    {
-      id: "7",
-      title: "Riverside Loft",
-      location: "Austin, TX",
-      price: 140,
-      rating: 4.7,
-      reviews: 112,
-      guests: 4,
-      imageUrl: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800",
-      category: "Loft"
-    },
-    {
-      id: "8",
-      title: "Desert Oasis Villa",
-      location: "Phoenix, AZ",
-      price: 280,
-      rating: 4.8,
-      reviews: 94,
-      guests: 10,
-      imageUrl: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800",
-      category: "Villa"
+  const [searchTerm, setSearchTerm] = useState("");
+  const [propertyType, setPropertyType] = useState("all");
+  const [priceRange, setPriceRange] = useState([1000, 10000]);
+  const [guests, setGuests] = useState("any");
+  const [sortBy, setSortBy] = useState("recommended");
+
+  const filteredAndSortedProperties = useMemo(() => {
+    let filtered = properties.filter((property) => {
+      // Search Term Filter (by location)
+      const matchesSearch = property.location
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
+      // Property Type Filter
+      const matchesType =
+        propertyType === "all" || property.category.toLowerCase() === propertyType;
+
+      // Price Range Filter
+      const matchesPrice =
+        property.price >= priceRange[0] && property.price <= priceRange[1];
+
+      // Guests Filter
+      const matchesGuests = guests === "any" || property.guests >= parseInt(guests);
+
+      return matchesSearch && matchesType && matchesPrice && matchesGuests;
+    });
+
+    // Sorting Logic
+    if (sortBy === "price-low") {
+      filtered.sort((a, b) => a.price - b.price);
+    } else if (sortBy === "price-high") {
+      filtered.sort((a, b) => b.price - a.price);
+    } else if (sortBy === "rating") {
+      filtered.sort((a, b) => b.rating - a.rating);
     }
-  ];
+    // 'recommended' sorting is the default order, so no extra logic needed.
+
+    return filtered;
+  }, [searchTerm, propertyType, priceRange, guests, sortBy]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -123,13 +71,18 @@ const Properties = () => {
                   <label className="text-sm font-medium mb-2 block">Search Location</label>
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Where to?" className="pl-10" />
+                    <Input
+                      placeholder="Where to?"
+                      className="pl-10"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                   </div>
                 </div>
                 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Property Type</label>
-                  <Select>
+                  <Select value={propertyType} onValueChange={setPropertyType}>
                     <SelectTrigger>
                       <SelectValue placeholder="All Types" />
                     </SelectTrigger>
@@ -145,12 +98,12 @@ const Properties = () => {
                 
                 <div>
                   <label className="text-sm font-medium mb-4 block">
-                    Price Range: ${priceRange[0]} - ${priceRange[1]}
+                    Price Range: ₹{priceRange[0]} - ₹{priceRange[1]}
                   </label>
                   <Slider
-                    min={0}
-                    max={500}
-                    step={10}
+                    min={1000}
+                    max={10000}
+                    step={100}
                     value={priceRange}
                     onValueChange={setPriceRange}
                     className="mb-2"
@@ -159,7 +112,7 @@ const Properties = () => {
                 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Guests</label>
-                  <Select>
+                  <Select value={guests} onValueChange={setGuests}>
                     <SelectTrigger>
                       <SelectValue placeholder="Any" />
                     </SelectTrigger>
@@ -173,7 +126,9 @@ const Properties = () => {
                   </Select>
                 </div>
                 
-                <Button className="w-full">Apply Filters</Button>
+                <Button className="w-full" disabled>
+                  Filters Applied
+                </Button>
               </div>
             </div>
           </aside>
@@ -182,9 +137,9 @@ const Properties = () => {
           <div className="lg:col-span-3">
             <div className="flex items-center justify-between mb-6">
               <p className="text-muted-foreground">
-                Showing {properties.length} properties
+                Showing {filteredAndSortedProperties.length} properties
               </p>
-              <Select defaultValue="recommended">
+              <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -197,11 +152,18 @@ const Properties = () => {
               </Select>
             </div>
             
-            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {properties.map((property) => (
-                <PropertyCard key={property.id} {...property} />
-              ))}
-            </div>
+            {filteredAndSortedProperties.length === 0 ? (
+              <div className="text-center py-10">
+                <h3 className="text-xl font-semibold mb-2">No properties found</h3>
+                <p className="text-muted-foreground">Try adjusting your filters or search term.</p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredAndSortedProperties.map((property) => (
+                  <PropertyCard key={property.id} {...property} />
+                ))}
+              </div>
+            )}
             
             <div className="mt-12 flex justify-center">
               <Button variant="outline" size="lg">Load More Properties</Button>

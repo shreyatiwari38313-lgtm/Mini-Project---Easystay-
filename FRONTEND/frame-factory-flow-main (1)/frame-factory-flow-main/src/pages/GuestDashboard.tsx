@@ -131,7 +131,7 @@ const GuestDashboard = () => {
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-lg font-bold text-primary">${booking.total}</span>
+                          <span className="text-lg font-bold text-primary">₹{booking.total}</span>
                           <Button size="sm" variant="outline">View Details</Button>
                         </div>
                       </CardContent>
@@ -231,7 +231,7 @@ const GuestDashboard = () => {
                           <Star className="h-4 w-4 fill-accent text-accent" />
                           <span className="font-medium">{property.rating}</span>
                         </div>
-                        <span className="text-lg font-bold text-primary">${property.price}/night</span>
+                        <span className="text-lg font-bold text-primary">₹{property.price}/night</span>
                       </div>
                     </CardContent>
                   </Card>

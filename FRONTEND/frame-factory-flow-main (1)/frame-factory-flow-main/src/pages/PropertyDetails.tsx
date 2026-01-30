@@ -1,4 +1,5 @@
-import { useParams, Link } from "react-router-dom";
+
+import { useParams, Link, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,36 +12,37 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
+import properties from "@/lib/propertiesData";
 
 const PropertyDetails = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [checkIn, setCheckIn] = useState<Date>();
   const [checkOut, setCheckOut] = useState<Date>();
   
-  // Mock data - would come from API in real app
-  const property = {
-    id,
-    title: "Cozy Downtown Apartment",
-    location: "123 Main Street, New York, NY 10001",
-    price: 120,
-    rating: 4.8,
-    reviews: 124,
-    guests: 4,
-    bedrooms: 2,
-    bathrooms: 2,
-    images: [
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200",
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200",
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200",
-    ],
-    description: "Experience the perfect blend of comfort and convenience in this beautifully designed downtown apartment. Located in the heart of the city, this space offers easy access to restaurants, shops, and entertainment while providing a peaceful retreat after a day of exploration.",
-    amenities: ["WiFi", "Free Parking", "Kitchen", "Air Conditioning", "Heating", "TV"],
-    host: {
-      name: "Sarah Johnson",
-      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200",
-      joinedDate: "2020"
-    }
-  };
+  // Find property by id from shared data
+  const property = properties.find((p) => p.id === id);
+  
+  if (!property) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8">
+          <Link to="/properties">
+            <Button variant="ghost" className="mb-4">
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Back to Properties
+            </Button>
+          </Link>
+          <div className="mt-8 text-center">
+            <h2 className="text-2xl font-semibold">Property not found</h2>
+            <p className="text-muted-foreground mt-2">The property you're looking for doesn't exist.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
 
   return (
     <div className="min-h-screen bg-background">
@@ -153,7 +155,7 @@ const PropertyDetails = () => {
             <Card className="sticky top-24 border-2">
               <CardContent className="p-6">
                 <div className="mb-6">
-                  <span className="text-3xl font-bold text-primary">${property.price}</span>
+                  <span className="text-3xl font-bold text-primary">₹{property.price}</span>
                   <span className="text-muted-foreground"> / night</span>
                 </div>
                 
@@ -189,7 +191,21 @@ const PropertyDetails = () => {
                   </div>
                 </div>
                 
-                <Button className="w-full mb-4" size="lg">
+                <Button
+                  className="w-full mb-4"
+                  size="lg"
+                  onClick={() => {
+                    // simple auth check: presence of `user` in localStorage
+                    const user = localStorage.getItem("user");
+                    const paymentState = { propertyId: property.id, price: property.price };
+                    if (user) {
+                      navigate("/payment", { state: paymentState });
+                    } else {
+                      // redirect to login and pass intended destination
+                      navigate("/login", { state: { redirectTo: "/payment", redirectState: paymentState } });
+                    }
+                  }}
+                >
                   Reserve Now
                 </Button>
                 
@@ -199,16 +215,16 @@ const PropertyDetails = () => {
                 
                 <div className="mt-6 pt-6 border-t space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">${property.price} × 3 nights</span>
-                    <span>${property.price * 3}</span>
+                    <span className="text-muted-foreground">₹{property.price} × 3 nights</span>
+                    <span>₹{property.price * 3}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Service fee</span>
-                    <span>$50</span>
+                    <span>₹50</span>
                   </div>
                   <div className="flex justify-between font-semibold pt-2 border-t">
                     <span>Total</span>
-                    <span>${property.price * 3 + 50}</span>
+                    <span>₹{property.price * 3 + 50}</span>
                   </div>
                 </div>
               </CardContent>

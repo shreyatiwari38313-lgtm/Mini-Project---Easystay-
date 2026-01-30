@@ -13,6 +13,7 @@ import GuestDashboard from "./pages/GuestDashboard";
 import HostDashboard from "./pages/HostDashboard";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Payment from "./pages/Payment";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,7 @@ const App = () => (
             </ProtectedRoute>
           }
         />
+        <Route path="/payment" element={<Payment/>}/>
 
         {/* Catch-all */}
         <Route path="*" element={<NotFound />} />

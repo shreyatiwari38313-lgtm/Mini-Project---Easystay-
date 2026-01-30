@@ -64,7 +64,7 @@ const PropertyCard = ({
         <CardFooter className="p-4 pt-0">
           <div className="w-full flex items-center justify-between">
             <div>
-              <span className="text-2xl font-bold text-primary">${price}</span>
+              <span className="text-2xl font-bold text-primary">₹{price}</span>
               <span className="text-muted-foreground text-sm"> / night</span>
             </div>
           </div>

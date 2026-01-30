@@ -167,7 +167,7 @@ const HostDashboard = () => {
                         </div>
                         <div>
                           <p className="text-muted-foreground">Revenue</p>
-                          <p className="font-semibold text-primary">${property.revenue}</p>
+                          <p className="font-semibold text-primary">₹{property.revenue}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground">Rating</p>
@@ -178,7 +178,7 @@ const HostDashboard = () => {
                         </div>
                         <div>
                           <p className="text-muted-foreground">Price/night</p>
-                          <p className="font-semibold">${property.price}</p>
+                          <p className="font-semibold">₹{property.price}</p>
                         </div>
                       </div>
                       
@@ -224,7 +224,7 @@ const HostDashboard = () => {
                           <td className="px-6 py-4 text-sm">{booking.property}</td>
                           <td className="px-6 py-4 text-sm">{booking.checkIn}</td>
                           <td className="px-6 py-4 text-sm">{booking.checkOut}</td>
-                          <td className="px-6 py-4 font-semibold text-primary">${booking.amount}</td>
+                          <td className="px-6 py-4 font-semibold text-primary">₹{booking.amount}</td>
                           <td className="px-6 py-4">
                             <Badge variant={booking.status === "confirmed" ? "default" : "secondary"}>
                               {booking.status}
