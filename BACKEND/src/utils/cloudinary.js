@@ -12,18 +12,22 @@ cloudinary.config({
     //we have to keep them(cloud_name,api_key,api_secret) in .env file
 
     //uploading a file
-    const uploadOnCloud = async (localFilePath)=>{
-        try{
-           if(!localFilePath) return null;
-           const response = await cloudinary.uploader.upload(localFilePath,{
-             resource: "auto" 
-           })
-           console.log("file has been successfully uploaded", response.url);
-           return response;
-        }catch(error){
-          fs.unlinkSync(localFilePath)
-          return null;
-        }
-    }
-    //exporting 
-    export {uploadOnCloud}
+    const uploadOnCloud = async (localFilePath) => {
+  try {
+    if (!localFilePath) return null;
+
+    const response = await cloudinary.uploader.upload(localFilePath, {
+      resource_type: "auto",
+      folder: "easystay/properties",
+    });
+
+    fs.unlinkSync(localFilePath); // ✅ cleanup after success
+    return response;
+  } catch (error) {
+    fs.unlinkSync(localFilePath);
+    return null;
+  }
+};
+
+  //exporting 
+  export {uploadOnCloud}

@@ -102,4 +102,4 @@ const propertySchema = new mongoose.Schema(
 // Geo-spatial index for location-based search
 propertySchema.index({ location: "2dsphere" });
 
-export default mongoose.model("Property", propertySchema);
+export const Property = mongoose.model("Property", propertySchema);
