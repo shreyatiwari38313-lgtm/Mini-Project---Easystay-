@@ -9,7 +9,12 @@ const protect = (req, res, next) => {
 
   try {
     const token = auth.split(" ")[1]
-    req.user = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
+    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
+    // Ensure req.user.id is set from decoded token (handle both '_id' and 'id' fields)
+    req.user = {
+      ...decoded,
+      id: decoded._id || decoded.id,
+    }
     next()
   } catch {
     res.status(401).json({ message: "Invalid token" })

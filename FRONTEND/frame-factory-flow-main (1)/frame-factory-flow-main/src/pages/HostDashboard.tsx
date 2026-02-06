@@ -1,14 +1,217 @@
 import Navbar from "@/components/Navbar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Plus, Home, DollarSign, Calendar, Star, 
-  TrendingUp, Users, MessageSquare 
-} from "lucide-react";
+import { Plus, Home, DollarSign, Calendar, Star, TrendingUp, MessageSquare, X } from "lucide-react";
+import React, { useEffect, useState } from "react";
 
 const HostDashboard = () => {
+  const [properties, setProperties] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    propertyType: "apartment",
+    pricePerNight: "",
+    maxGuests: "",
+    bedrooms: "1",
+    bathrooms: "1",
+    street: "",
+    city: "",
+    state: "",
+    country: "",
+    zipCode: "",
+    longitude: "0",
+    latitude: "0",
+    amenities: "",
+    images: [] as File[]
+  });
+
+  // API base (use Vite env variable VITE_API_BASE if available)
+  const API_BASE = (import.meta.env.VITE_API_BASE as string) || "http://localhost:8000";
+
+  // Get token from localStorage (use "accessToken" key from auth.api.ts)
+  const token = localStorage.getItem("accessToken");
+
+  // Fetch properties
+  useEffect(() => {
+    if (!token) {
+      console.warn("⚠️ No token found. Please login first.");
+      setError("You must be logged in to view properties");
+      return;
+    }
+    fetchProperties();
+  }, [token]);
+
+  const fetchProperties = async () => {
+    if (!token) {
+      setError("Authentication required. Please login.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      console.log("📡 Fetching properties with token:", token.substring(0, 20) + "...");
+      const res = await fetch(`${API_BASE}/api/v1/properties/my/properties`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      console.log("📊 Response status:", res.status);
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+        throw new Error(errorData.message || `Failed to fetch properties: ${res.status}`);
+      }
+
+      const data = await res.json();
+      setProperties(data.properties || []);
+    } catch (err: any) {
+      console.error("❌ Error fetching properties:", err);
+      setError(err.message || "Failed to load properties");
+      setProperties([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle input change
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const target = e.target as HTMLInputElement;
+    const { name } = target;
+    
+    // Handle file input
+    if (name === "images" && target.files) {
+      setForm(prev => ({
+        ...prev,
+        images: Array.from(target.files as FileList)
+      }));
+      return;
+    }
+    
+    const { value } = e.target;
+    setForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Submit form
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    setSubmitting(true);
+
+    try {
+      // Validate required fields
+      if (!form.title || !form.city || !form.pricePerNight || !form.propertyType) {
+        throw new Error("Please fill all required fields");
+      }
+
+      // Prepare FormData with image files
+      const formData = new FormData();
+      formData.append("title", form.title);
+      formData.append("description", form.description);
+      formData.append("propertyType", form.propertyType);
+      formData.append("pricePerNight", form.pricePerNight);
+      formData.append("maxGuests", form.maxGuests ? form.maxGuests : "1");
+      formData.append("bedrooms", form.bedrooms);
+      formData.append("bathrooms", form.bathrooms);
+      formData.append("longitude", form.longitude);
+      formData.append("latitude", form.latitude);
+      
+      // Add address as nested object
+      const addressObj = {
+        street: form.street,
+        city: form.city,
+        state: form.state,
+        country: form.country,
+        zipCode: form.zipCode
+      };
+      formData.append("address", JSON.stringify(addressObj));
+      
+      // Note: amenities require ObjectIds (references to Amenity documents)
+      // For now, we're skipping amenities in the basic property creation
+      // TODO: Implement amenity selection with actual Amenity ObjectIds
+      
+      // Add image files
+      if (form.images && form.images.length > 0) {
+        console.log("📸 Adding images to FormData:", form.images.length, "files");
+        for (let i = 0; i < form.images.length; i++) {
+          console.log(`   File ${i}: ${form.images[i].name} (${form.images[i].size} bytes, ${form.images[i].type})`);
+          formData.append("images", form.images[i]);
+        }
+      } else {
+        console.warn("⚠️  No images selected");
+      }
+
+      console.log("📡 Creating property with token:", token?.substring(0, 20) + "...");
+
+      const res = await fetch(`${API_BASE}/api/v1/properties`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+        body: formData
+      });
+
+      console.log("📊 Response status:", res.status);
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        console.error("❌ Server error response:", data);
+        throw new Error(data.message || `Server error: ${res.status}`);
+      }
+
+      console.log("✅ Property created successfully:", data);
+
+      setSuccess("Property created successfully!");
+      
+      // Reset form
+      setForm({
+        title: "",
+        description: "",
+        propertyType: "apartment",
+        pricePerNight: "",
+        maxGuests: "",
+        bedrooms: "1",
+        bathrooms: "1",
+        street: "",
+        city: "",
+        state: "",
+        country: "",
+        zipCode: "",
+        longitude: "0",
+        latitude: "0",
+        amenities: "",
+        images: []
+      });
+
+      // Refresh properties
+      setTimeout(() => {
+        setShowModal(false);
+        fetchProperties();
+      }, 1000);
+
+    } catch (err: any) {
+      const errorMsg = err.message || "Error creating property";
+      setError(errorMsg);
+      console.error("Error:", err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const stats = [
     {
       title: "Total Earnings",
@@ -19,8 +222,8 @@ const HostDashboard = () => {
     },
     {
       title: "Active Listings",
-      value: "5",
-      change: "+1 this month",
+      value: properties.length.toString(),
+      change: `+${Math.max(0, properties.length - 4)} this month`,
       icon: Home,
       trend: "up"
     },
@@ -37,31 +240,6 @@ const HostDashboard = () => {
       change: "From 124 reviews",
       icon: Star,
       trend: "up"
-    }
-  ];
-
-  const properties = [
-    {
-      id: "1",
-      title: "Cozy Downtown Apartment",
-      location: "New York, NY",
-      price: 120,
-      status: "active",
-      bookings: 15,
-      revenue: 3450,
-      rating: 4.8,
-      image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400"
-    },
-    {
-      id: "2",
-      title: "Beachfront Villa",
-      location: "Miami, FL",
-      price: 350,
-      status: "active",
-      bookings: 8,
-      revenue: 5600,
-      rating: 4.9,
-      image: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=400"
     }
   ];
 
@@ -83,24 +261,295 @@ const HostDashboard = () => {
       checkOut: "2025-11-25",
       amount: 1800,
       status: "pending"
+    },
+    {
+      id: "3",
+      guest: "Shreya Tiwari",
+      property: "Royal Palace",
+      checkIn: "2026-01-20",
+      checkOut: "2026-01-31",
+      amount: 8800,
+      status: "pending"
     }
   ];
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-4xl font-bold mb-2">Host Dashboard</h1>
             <p className="text-muted-foreground">Manage your properties and bookings</p>
           </div>
-          <Button size="lg" className="bg-gradient-primary">
+          <Button
+            size="lg"
+            className="bg-gradient-primary hover:opacity-90"
+            onClick={() => setShowModal(true)}
+          >
             <Plus className="mr-2 h-5 w-5" />
             Add Property
           </Button>
         </div>
+
+        {/* Modal */}
+        {showModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b p-6 flex items-center justify-between">
+                <h2 className="text-2xl font-bold">Add New Property</h2>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="p-6">
+                {error && (
+                  <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                    {error}
+                  </div>
+                )}
+                {success && (
+                  <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+                    {success}
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Basic Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold mb-1">Title *</label>
+                      <input
+                        type="text"
+                        name="title"
+                        value={form.title}
+                        onChange={handleInputChange}
+                        placeholder="e.g., Cozy Apartment"
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold mb-1">Property Type *</label>
+                      <select
+                        name="propertyType"
+                        value={form.propertyType}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        <option value="apartment">Apartment</option>
+                        <option value="house">House</option>
+                        <option value="villa">Villa</option>
+                        <option value="cottage">Cottage</option>
+                        <option value="hotel">Hotel</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold mb-1">Price Per Night (₹) *</label>
+                      <input
+                        type="number"
+                        name="pricePerNight"
+                        value={form.pricePerNight}
+                        onChange={handleInputChange}
+                        placeholder="e.g., 2500"
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold mb-1">Max Guests</label>
+                      <input
+                        type="number"
+                        name="maxGuests"
+                        value={form.maxGuests}
+                        onChange={handleInputChange}
+                        placeholder="e.g., 4"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold mb-1">Bedrooms</label>
+                      <input
+                        type="number"
+                        name="bedrooms"
+                        value={form.bedrooms}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold mb-1">Bathrooms</label>
+                      <input
+                        type="number"
+                        name="bathrooms"
+                        value={form.bathrooms}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-1">Description</label>
+                    <textarea
+                      name="description"
+                      value={form.description}
+                      onChange={handleInputChange}
+                      placeholder="Describe your property..."
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+
+                  {/* Address */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Address</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold mb-1">Street</label>
+                        <input
+                          type="text"
+                          name="street"
+                          value={form.street}
+                          onChange={handleInputChange}
+                          placeholder="123 Main St"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold mb-1">City *</label>
+                        <input
+                          type="text"
+                          name="city"
+                          value={form.city}
+                          onChange={handleInputChange}
+                          placeholder="Mumbai"
+                          required
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold mb-1">State</label>
+                        <input
+                          type="text"
+                          name="state"
+                          value={form.state}
+                          onChange={handleInputChange}
+                          placeholder="Maharashtra"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold mb-1">Country</label>
+                        <input
+                          type="text"
+                          name="country"
+                          value={form.country}
+                          onChange={handleInputChange}
+                          placeholder="India"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold mb-1">Zip Code</label>
+                        <input
+                          type="text"
+                          name="zipCode"
+                          value={form.zipCode}
+                          onChange={handleInputChange}
+                          placeholder="400001"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Amenities */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-1">Amenities (comma separated)</label>
+                    <input
+                      type="text"
+                      name="amenities"
+                      value={form.amenities}
+                      onChange={handleInputChange}
+                      placeholder="e.g., WiFi, Pool, Parking, AC"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+
+                  {/* Images Upload */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-1">Property Images (up to 5) *</label>
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-primary hover:bg-primary hover:bg-opacity-5 transition">
+                      <input
+                        type="file"
+                        name="images"
+                        multiple
+                        accept="image/*"
+                        onChange={handleInputChange}
+                        className="hidden"
+                        id="imageInput"
+                      />
+                      <label htmlFor="imageInput" className="cursor-pointer block">
+                        <div className="text-gray-600 text-sm">
+                          <p className="font-semibold mb-1">Click to upload or drag and drop</p>
+                          <p className="text-xs text-gray-500">PNG, JPG, GIF up to 5 MB (max 5 images)</p>
+                        </div>
+                      </label>
+                    </div>
+                    {form.images && form.images.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        <p className="text-sm font-semibold text-green-600">Selected {form.images.length} image(s):</p>
+                        <div className="flex flex-wrap gap-2">
+                          {Array.from(form.images).map((file, idx) => (
+                            <span key={idx} className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                              {file.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3 justify-end pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowModal(false)}
+                      disabled={submitting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="bg-gradient-primary"
+                      disabled={submitting}
+                    >
+                      {submitting ? "Creating..." : "Add Property"}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -128,6 +577,7 @@ const HostDashboard = () => {
           })}
         </div>
 
+        {/* Tabs */}
         <Tabs defaultValue="properties" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3 max-w-md">
             <TabsTrigger value="properties">Properties</TabsTrigger>
@@ -138,59 +588,60 @@ const HostDashboard = () => {
           <TabsContent value="properties" className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-semibold">My Properties</h2>
-              <Button variant="outline">
+              <Button variant="outline" onClick={() => setShowModal(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add New
               </Button>
             </div>
-            
-            <div className="grid md:grid-cols-2 gap-6">
-              {properties.map((property) => (
-                <Card key={property.id} className="overflow-hidden hover:shadow-card-hover transition-all">
-                  <div className="flex">
-                    <img 
-                      src={property.image} 
-                      alt={property.title}
-                      className="w-40 h-full object-cover"
-                    />
-                    <CardContent className="flex-1 p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="font-semibold text-lg">{property.title}</h3>
-                        <Badge variant="default">{property.status}</Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-4">{property.location}</p>
-                      
-                      <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                        <div>
-                          <p className="text-muted-foreground">Total Bookings</p>
-                          <p className="font-semibold">{property.bookings}</p>
+
+            {loading ? (
+              <Card>
+                <CardContent className="p-8 text-center">Loading properties...</CardContent>
+              </Card>
+            ) : properties.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center text-muted-foreground">
+                  No properties yet. Create your first property!
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-6">
+                {properties.map((property: any) => (
+                  <Card key={property._id} className="overflow-hidden">
+                    <div className="flex">
+                      <img
+                        src={property.images?.[0]?.url || "https://via.placeholder.com/160x160"}
+                        alt={property.title}
+                        className="w-40 h-40 object-cover"
+                      />
+                      <CardContent className="flex-1 p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="font-semibold text-lg">{property.title}</h3>
+                          <Badge>{property.status || "pending"}</Badge>
                         </div>
-                        <div>
-                          <p className="text-muted-foreground">Revenue</p>
-                          <p className="font-semibold text-primary">₹{property.revenue}</p>
+                        <p className="text-sm text-muted-foreground mb-3">
+                          {property.address?.city}, {property.address?.country}
+                        </p>
+                        <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                          <div>
+                            <p className="text-muted-foreground">Price/night</p>
+                            <p className="font-semibold">₹{property.pricePerNight}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Type</p>
+                            <p className="font-semibold capitalize">{property.propertyType}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-muted-foreground">Rating</p>
-                          <p className="font-semibold flex items-center gap-1">
-                            <Star className="h-3 w-3 fill-accent text-accent" />
-                            {property.rating}
-                          </p>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" className="flex-1">Edit</Button>
+                          <Button size="sm" variant="outline" className="flex-1">View</Button>
                         </div>
-                        <div>
-                          <p className="text-muted-foreground">Price/night</p>
-                          <p className="font-semibold">₹{property.price}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="flex-1">Edit</Button>
-                        <Button size="sm" variant="outline" className="flex-1">View</Button>
-                      </div>
-                    </CardContent>
-                  </div>
-                </Card>
-              ))}
-            </div>
+                      </CardContent>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="bookings" className="space-y-4">
@@ -207,33 +658,27 @@ const HostDashboard = () => {
                         <th className="px-6 py-4 text-left text-sm font-semibold">Check-out</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold">Amount</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-border">
+                    <tbody className="divide-y">
                       {recentBookings.map((booking) => (
                         <tr key={booking.id} className="hover:bg-muted/30">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white font-semibold">
+                              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-sm font-semibold">
                                 {booking.guest[0]}
                               </div>
-                              <span className="font-medium">{booking.guest}</span>
+                              <span>{booking.guest}</span>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-sm">{booking.property}</td>
                           <td className="px-6 py-4 text-sm">{booking.checkIn}</td>
                           <td className="px-6 py-4 text-sm">{booking.checkOut}</td>
-                          <td className="px-6 py-4 font-semibold text-primary">₹{booking.amount}</td>
+                          <td className="px-6 py-4 font-semibold">₹{booking.amount}</td>
                           <td className="px-6 py-4">
                             <Badge variant={booking.status === "confirmed" ? "default" : "secondary"}>
                               {booking.status}
                             </Badge>
-                          </td>
-                          <td className="px-6 py-4">
-                            <Button size="sm" variant="ghost">
-                              <MessageSquare className="h-4 w-4" />
-                            </Button>
                           </td>
                         </tr>
                       ))}
@@ -247,12 +692,10 @@ const HostDashboard = () => {
           <TabsContent value="reviews" className="space-y-4">
             <h2 className="text-2xl font-semibold">Guest Reviews</h2>
             <Card>
-              <CardContent className="p-6">
-                <div className="text-center py-12">
-                  <Star className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">No reviews yet</h3>
-                  <p className="text-muted-foreground">Reviews from your guests will appear here</p>
-                </div>
+              <CardContent className="p-8 text-center">
+                <Star className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No reviews yet</h3>
+                <p className="text-muted-foreground">Reviews from guests will appear here</p>
               </CardContent>
             </Card>
           </TabsContent>

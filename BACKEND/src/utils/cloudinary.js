@@ -14,17 +14,30 @@ cloudinary.config({
     //uploading a file
     const uploadOnCloud = async (localFilePath) => {
   try {
-    if (!localFilePath) return null;
+    if (!localFilePath) {
+      console.error("❌ [CLOUDINARY] No file path provided");
+      return null;
+    }
 
+    console.log("🚀 [CLOUDINARY] Uploading file:", localFilePath);
     const response = await cloudinary.uploader.upload(localFilePath, {
       resource_type: "auto",
       folder: "easystay/properties",
     });
 
-    fs.unlinkSync(localFilePath); // ✅ cleanup after success
+    console.log("✅ [CLOUDINARY] Upload successful:", response.secure_url);
+    // Cleanup after success
+    if (fs.existsSync(localFilePath)) {
+      fs.unlinkSync(localFilePath);
+      console.log("🗑️  [CLOUDINARY] Temp file deleted");
+    }
     return response;
   } catch (error) {
-    fs.unlinkSync(localFilePath);
+    console.error("❌ [CLOUDINARY] Upload failed:", error.message);
+    // Cleanup on error
+    if (localFilePath && fs.existsSync(localFilePath)) {
+      fs.unlinkSync(localFilePath);
+    }
     return null;
   }
 };
