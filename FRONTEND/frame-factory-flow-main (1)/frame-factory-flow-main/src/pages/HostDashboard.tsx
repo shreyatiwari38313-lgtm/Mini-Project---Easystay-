@@ -13,6 +13,8 @@ const HostDashboard = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [editModal, setEditModal] = useState<{ open: boolean, property?: any }>({ open: false });
+  const [viewModal, setViewModal] = useState<{ open: boolean, property?: any }>({ open: false });
 
   const [form, setForm] = useState({
     title: "",
@@ -209,6 +211,29 @@ const HostDashboard = () => {
       console.error("Error:", err);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Delete property
+  const handleDeleteProperty = async (propertyId: string) => {
+    if (!token) {
+      setError("Authentication required. Please login.");
+      return;
+    }
+    if (!window.confirm("Are you sure you want to delete this property?")) return;
+    setLoading(true);
+    try {
+          const res = await fetch(`${API_BASE}/api/v1/properties/${propertyId}`, { method: "DELETE", headers: { "Authorization": `Bearer ${token}` } });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+        throw new Error(errorData.message || `Failed to delete property: ${res.status}`);
+      }
+      setSuccess("Property deleted successfully!");
+      fetchProperties();
+    } catch (err: any) {
+      setError(err.message || "Failed to delete property");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -633,13 +658,368 @@ const HostDashboard = () => {
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <Button size="sm" variant="outline" className="flex-1">Edit</Button>
-                          <Button size="sm" variant="outline" className="flex-1">View</Button>
+                          <Button size="sm" variant="outline" className="flex-1" onClick={() => setEditModal({ open: true, property })}>Edit</Button>
+                          <Button size="sm" variant="outline" className="flex-1" onClick={() => setViewModal({ open: true, property })}>View</Button>
+                          <Button size="sm" variant="destructive" className="flex-1" onClick={() => handleDeleteProperty(property._id)}>Delete</Button>
                         </div>
                       </CardContent>
                     </div>
                   </Card>
                 ))}
+              </div>
+            )}
+
+            {/* Edit Modal */}
+            {editModal.open && editModal.property && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <div className="sticky top-0 bg-white border-b p-6 flex items-center justify-between">
+                    <h2 className="text-2xl font-bold">Edit Property</h2>
+                    <button
+                      onClick={() => setEditModal({ open: false })}
+                      className="text-gray-500 hover:text-gray-700 text-2xl"
+                    >
+                      <X className="h-6 w-6" />
+                    </button>
+                  </div>
+                  <div className="p-6">
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        setSubmitting(true);
+                        setError("");
+                        setSuccess("");
+                        try {
+                          // Prepare FormData for PUT
+                          const formData = new FormData();
+                          formData.append("title", editModal.property.title);
+                          formData.append("description", editModal.property.description || "");
+                          formData.append("propertyType", editModal.property.propertyType);
+                          formData.append("pricePerNight", editModal.property.pricePerNight);
+                          formData.append("maxGuests", editModal.property.maxGuests || "1");
+                          formData.append("bedrooms", editModal.property.bedrooms || "1");
+                          formData.append("bathrooms", editModal.property.bathrooms || "1");
+                          formData.append("longitude", editModal.property.longitude || "0");
+                          formData.append("latitude", editModal.property.latitude || "0");
+                          const addressObj = {
+                            street: editModal.property.address?.street || "",
+                            city: editModal.property.address?.city || "",
+                            state: editModal.property.address?.state || "",
+                            country: editModal.property.address?.country || "",
+                            zipCode: editModal.property.address?.zipCode || ""
+                          };
+                          formData.append("address", JSON.stringify(addressObj));
+                          // Amenities (comma separated)
+                          if (editModal.property.amenities) {
+                            formData.append("amenities", editModal.property.amenities);
+                          }
+                          // Images (new uploads)
+                          if (editModal.property.newImages && editModal.property.newImages.length > 0) {
+                            for (let i = 0; i < editModal.property.newImages.length; i++) {
+                              formData.append("images", editModal.property.newImages[i]);
+                            }
+                          }
+                          // PUT request (not PATCH)
+                          const res = await fetch(`${API_BASE}/api/v1/properties/${editModal.property._id}`, {
+                            method: "PUT",
+                            headers: {
+                              "Authorization": `Bearer ${token}`
+                            },
+                            body: formData
+                          });
+                          if (!res.ok) {
+                            const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+                            throw new Error(errorData.message || `Failed to update property: ${res.status}`);
+                          }
+                          setSuccess("Property updated successfully!");
+                          setEditModal({ open: false });
+                          fetchProperties();
+                        } catch (err: any) {
+                          setError(err.message || "Failed to update property");
+                        } finally {
+                          setSubmitting(false);
+                        }
+                      }}
+                      className="space-y-6"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold mb-1">Title *</label>
+                          <input
+                            type="text"
+                            name="title"
+                            value={editModal.property.title}
+                            onChange={e => setEditModal({ open: true, property: { ...editModal.property, title: e.target.value } })}
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold mb-1">Property Type *</label>
+                          <select
+                            name="propertyType"
+                            value={editModal.property.propertyType}
+                            onChange={e => setEditModal({ open: true, property: { ...editModal.property, propertyType: e.target.value } })}
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          >
+                            <option value="apartment">Apartment</option>
+                            <option value="house">House</option>
+                            <option value="villa">Villa</option>
+                            <option value="cottage">Cottage</option>
+                            <option value="hotel">Hotel</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold mb-1">Price Per Night (₹) *</label>
+                          <input
+                            type="number"
+                            name="pricePerNight"
+                            value={editModal.property.pricePerNight}
+                            onChange={e => setEditModal({ open: true, property: { ...editModal.property, pricePerNight: e.target.value } })}
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold mb-1">Max Guests</label>
+                          <input
+                            type="number"
+                            name="maxGuests"
+                            value={editModal.property.maxGuests || ""}
+                            onChange={e => setEditModal({ open: true, property: { ...editModal.property, maxGuests: e.target.value } })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold mb-1">Bedrooms</label>
+                          <input
+                            type="number"
+                            name="bedrooms"
+                            value={editModal.property.bedrooms || ""}
+                            onChange={e => setEditModal({ open: true, property: { ...editModal.property, bedrooms: e.target.value } })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold mb-1">Bathrooms</label>
+                          <input
+                            type="number"
+                            name="bathrooms"
+                            value={editModal.property.bathrooms || ""}
+                            onChange={e => setEditModal({ open: true, property: { ...editModal.property, bathrooms: e.target.value } })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold mb-1">Description</label>
+                        <textarea
+                          name="description"
+                          value={editModal.property.description || ""}
+                          onChange={e => setEditModal({ open: true, property: { ...editModal.property, description: e.target.value } })}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold mb-3">Address</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-semibold mb-1">Street</label>
+                            <input
+                              type="text"
+                              name="street"
+                              value={editModal.property.address?.street || ""}
+                              onChange={e => setEditModal({ open: true, property: { ...editModal.property, address: { ...editModal.property.address, street: e.target.value } } })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold mb-1">City *</label>
+                            <input
+                              type="text"
+                              name="city"
+                              value={editModal.property.address?.city || ""}
+                              onChange={e => setEditModal({ open: true, property: { ...editModal.property, address: { ...editModal.property.address, city: e.target.value } } })}
+                              required
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold mb-1">State</label>
+                            <input
+                              type="text"
+                              name="state"
+                              value={editModal.property.address?.state || ""}
+                              onChange={e => setEditModal({ open: true, property: { ...editModal.property, address: { ...editModal.property.address, state: e.target.value } } })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold mb-1">Country</label>
+                            <input
+                              type="text"
+                              name="country"
+                              value={editModal.property.address?.country || ""}
+                              onChange={e => setEditModal({ open: true, property: { ...editModal.property, address: { ...editModal.property.address, country: e.target.value } } })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold mb-1">Zip Code</label>
+                            <input
+                              type="text"
+                              name="zipCode"
+                              value={editModal.property.address?.zipCode || ""}
+                              onChange={e => setEditModal({ open: true, property: { ...editModal.property, address: { ...editModal.property.address, zipCode: e.target.value } } })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      {/* Amenities */}
+                      <div>
+                        <label className="block text-sm font-semibold mb-1">Amenities (comma separated)</label>
+                        <input
+                          type="text"
+                          name="amenities"
+                          value={editModal.property.amenities || ""}
+                          onChange={e => setEditModal({ open: true, property: { ...editModal.property, amenities: e.target.value } })}
+                          placeholder="e.g., WiFi, Pool, Parking, AC"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                      {/* Images Upload */}
+                      <div>
+                        <label className="block text-sm font-semibold mb-1">Add/Replace Images (up to 5)</label>
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-primary hover:bg-primary hover:bg-opacity-5 transition">
+                          <input
+                            type="file"
+                            name="newImages"
+                            multiple
+                            accept="image/*"
+                            onChange={e => {
+                              const files = (e.target as HTMLInputElement).files;
+                              setEditModal({
+                                open: true,
+                                property: {
+                                  ...editModal.property,
+                                  newImages: files ? Array.from(files) : []
+                                }
+                              });
+                            }}
+                            className="hidden"
+                            id="editImageInput"
+                          />
+                          <label htmlFor="editImageInput" className="cursor-pointer block">
+                            <div className="text-gray-600 text-sm">
+                              <p className="font-semibold mb-1">Click to upload or drag and drop</p>
+                              <p className="text-xs text-gray-500">PNG, JPG, GIF up to 5 MB (max 5 images)</p>
+                            </div>
+                          </label>
+                        </div>
+                        {editModal.property.newImages && editModal.property.newImages.length > 0 && (
+                          <div className="mt-3 space-y-2">
+                            <p className="text-sm font-semibold text-green-600">Selected {editModal.property.newImages.length} image(s):</p>
+                            <div className="flex flex-wrap gap-2">
+                              {editModal.property.newImages.map((file: File, idx: number) => (
+                                <span key={idx} className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                                  {file.name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {/* Show existing images */}
+                        {editModal.property.images && editModal.property.images.length > 0 && (
+                          <div className="mt-3">
+                            <p className="text-sm font-semibold">Current Images:</p>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {editModal.property.images.map((img: any, idx: number) => (
+                                <img key={idx} src={img.url} alt="Property" className="w-16 h-16 object-cover rounded" />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-3 justify-end pt-4">
+                        <Button variant="outline" type="button" onClick={() => setEditModal({ open: false })}>Cancel</Button>
+                        <Button className="bg-gradient-primary" type="submit" disabled={submitting}>{submitting ? "Saving..." : "Save Changes"}</Button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* View Modal */}
+            {viewModal.open && viewModal.property && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <div className="sticky top-0 bg-white border-b p-6 flex items-center justify-between">
+                    <h2 className="text-2xl font-bold">Property Details</h2>
+                    <button
+                      onClick={() => setViewModal({ open: false })}
+                      className="text-gray-500 hover:text-gray-700 text-2xl"
+                    >
+                      <X className="h-6 w-6" />
+                    </button>
+                  </div>
+                  <div className="p-6">
+                    <div className="mb-4">
+                      {/* Show all images */}
+                      {viewModal.property.images && viewModal.property.images.length > 0 ? (
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {viewModal.property.images.map((img: any, idx: number) => (
+                            <img key={idx} src={img.url} alt={viewModal.property.title} className="w-32 h-32 object-cover rounded" />
+                          ))}
+                        </div>
+                      ) : (
+                        <img src="https://via.placeholder.com/160x160" alt="No images" className="w-40 h-40 object-cover mb-4" />
+                      )}
+                      <h3 className="font-semibold text-lg mb-2">{viewModal.property.title}</h3>
+                      <p className="text-muted-foreground mb-2">{viewModal.property.address?.city}, {viewModal.property.address?.country}</p>
+                      <p className="mb-2">Type: <b>{viewModal.property.propertyType}</b></p>
+                      <p className="mb-2">Price/night: <b>₹{viewModal.property.pricePerNight}</b></p>
+                      <p className="mb-2">Bedrooms: <b>{viewModal.property.bedrooms}</b></p>
+                      <p className="mb-2">Bathrooms: <b>{viewModal.property.bathrooms}</b></p>
+                      <p className="mb-2">Max Guests: <b>{viewModal.property.maxGuests}</b></p>
+                      <p className="mb-2">Description: {viewModal.property.description}</p>
+                      <p className="mb-2">Longitude: <b>{viewModal.property.longitude}</b></p>
+                      <p className="mb-2">Latitude: <b>{viewModal.property.latitude}</b></p>
+                      <p className="mb-2">Status: <Badge>{viewModal.property.status || "pending"}</Badge></p>
+                      <div className="mt-2">
+                        <h4 className="font-semibold">Address</h4>
+                        <p>Street: {viewModal.property.address?.street}</p>
+                        <p>City: {viewModal.property.address?.city}</p>
+                        <p>State: {viewModal.property.address?.state}</p>
+                        <p>Country: {viewModal.property.address?.country}</p>
+                        <p>Zip Code: {viewModal.property.address?.zipCode}</p>
+                      </div>
+                      {/* Show amenities if present */}
+                      {viewModal.property.amenities && (
+                        <div className="mt-2">
+                          <h4 className="font-semibold">Amenities</h4>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {typeof viewModal.property.amenities === 'string'
+                              ? viewModal.property.amenities.split(',').map((a: string, idx: number) => (
+                                  <span key={idx} className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">{a.trim()}</span>
+                                ))
+                              : Array.isArray(viewModal.property.amenities)
+                                ? viewModal.property.amenities.map((a: any, idx: number) => (
+                                    <span key={idx} className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">{a.name || a}</span>
+                                  ))
+                                : null}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-3 justify-end pt-4">
+                      <Button variant="outline" onClick={() => setViewModal({ open: false })}>Close</Button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </TabsContent>
