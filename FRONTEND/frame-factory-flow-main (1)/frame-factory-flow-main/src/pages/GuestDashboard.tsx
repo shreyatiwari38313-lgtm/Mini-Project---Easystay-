@@ -6,64 +6,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, MapPin, Star, User, Heart, Clock } from "lucide-react";
 
 const GuestDashboard = () => {
-  const upcomingBookings = [
-    {
-      id: "1",
-      property: "Cozy Downtown Apartment",
-      location: "New York, NY",
-      checkIn: "2025-11-15",
-      checkOut: "2025-11-18",
-      nights: 3,
-      total: 410,
-      image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400",
-      status: "confirmed"
-    },
-    {
-      id: "2",
-      property: "Beachfront Villa",
-      location: "Miami, FL",
-      checkIn: "2025-12-01",
-      checkOut: "2025-12-05",
-      nights: 4,
-      total: 1450,
-      image: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=400",
-      status: "pending"
-    }
-  ];
+  const upcomingBookings: any[] = [];
+  const pastBookings: any[] = [];
+  const favorites: any[] = [];
 
-  const pastBookings = [
-    {
-      id: "3",
-      property: "Mountain Cabin Retreat",
-      location: "Aspen, CO",
-      checkIn: "2025-09-10",
-      checkOut: "2025-09-15",
-      nights: 5,
-      total: 1050,
-      image: "https://images.unsplash.com/photo-1542718610-a1d656d1884c?w=400",
-      rating: 5,
-      reviewed: true
-    }
-  ];
-
-  const favorites = [
-    {
-      id: "1",
-      title: "Luxury Penthouse Suite",
-      location: "Chicago, IL",
-      price: 450,
-      rating: 4.9,
-      image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400"
-    },
-    {
-      id: "2",
-      title: "Riverside Loft",
-      location: "Austin, TX",
-      price: 140,
-      rating: 4.7,
-      image: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400"
-    }
-  ];
+  // For navigation
+  const handleBookProperties = () => {
+    window.location.href = "/properties";
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -96,7 +46,7 @@ const GuestDashboard = () => {
                   <Calendar className="h-16 w-16 text-muted-foreground mb-4" />
                   <h3 className="text-xl font-semibold mb-2">No upcoming trips</h3>
                   <p className="text-muted-foreground mb-6">Time to plan your next adventure!</p>
-                  <Button>Browse Properties</Button>
+                  <Button onClick={handleBookProperties}>Book Properties</Button>
                 </CardContent>
               </Card>
             ) : (
@@ -199,7 +149,7 @@ const GuestDashboard = () => {
                   <Heart className="h-16 w-16 text-muted-foreground mb-4" />
                   <h3 className="text-xl font-semibold mb-2">No favorites yet</h3>
                   <p className="text-muted-foreground mb-6">Save properties you love for later</p>
-                  <Button>Browse Properties</Button>
+                  <Button onClick={handleBookProperties}>Book Properties</Button>
                 </CardContent>
               </Card>
             ) : (
